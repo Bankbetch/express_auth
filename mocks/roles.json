@@ -1,0 +1,29 @@
+{
+  "_id": { "$oid": "5fbbe7091d5b2f04d4526585" },
+  "roleName": "Owner",
+  "permissions": [
+    {
+      "menuName": "Roles",
+      "menuId": "ROLES",
+      "menuPermissions": [
+        { "menuPermissionId": "ROLES_VIEW", "permissionId": "VIEW", "permissionName": "View" },
+        { "menuPermissionId": "ROLES_CREATE", "permissionId": "CREATE", "permissionName": "Create" },
+        { "menuPermissionId": "ROLES_EDIT", "permissionId": "EDIT", "permissionName": "Edit" },
+        { "menuPermissionId": "ROLES_DELETE", "permissionId": "DELETE", "permissionName": "Delete" }
+      ]
+    },
+    {
+      "menuName": "Users",
+      "menuId": "USERS",
+      "menuPermissions": [
+        { "menuPermissionId": "USERS_VIEW", "permissionId": "VIEW", "permissionName": "View" },
+        { "menuPermissionId": "USERS_CREATE", "permissionId": "CREATE", "permissionName": "Create" },
+        { "menuPermissionId": "USERS_EDIT", "permissionId": "EDIT", "permissionName": "Edit" },
+        { "menuPermissionId": "USERS_DELETE", "permissionId": "DELETE", "permissionName": "Delete" }
+      ]
+    }
+  ],
+  "createdAt": { "$date": "2020-11-23T16:44:57.470Z" },
+  "updatedAt": { "$date": "2020-11-23T16:44:57.470Z" },
+  "__v": 0
+}
