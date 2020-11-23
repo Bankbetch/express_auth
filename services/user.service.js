@@ -1,6 +1,7 @@
 const User = require('../models/User'),
   config = require('../configs/app'),
-  jwt = require('jsonwebtoken')
+  jwt = require('jsonwebtoken'),
+  _ = require('lodash')
 
 const methods = {
   scopeSearch(req) {
@@ -100,13 +101,11 @@ const methods = {
       try {
         let obj = await User.findOne({ username: data.username })
         if (!obj) {
-          reject(methods.error('username not found', 401))
+          reject(methods.error('username not found or password is invalid.', 401))
         }
-
         if (!obj.validPassword(data.password)) {
-          reject(methods.error('password is invalid.', 401))
+          reject(methods.error('username not found or password is invalid.', 401))
         }
-
         resolve({ accessToken: obj.generateJWT(obj), userData: obj })
       } catch (error) {
         reject(error)
@@ -125,6 +124,28 @@ const methods = {
         resolve({ accessToken: obj.generateJWT(obj), userData: obj })
       } catch (error) {
         reject(error)
+      }
+    })
+  },
+
+  validatorRole(req, res, next, roles) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        let decoded = jwt.decode(req)
+        let {
+          role: { permissions },
+        } = await User.findById(decoded.id).populate('role', ['roleName', 'permissions']).exec()
+        const menus = permissions.find((x) => x.menuId === roles[0])
+        const findMenuById = menus.menuPermissions.some((menus) => menus.menuPermissionId === roles[1])
+        if (!permissions.some((x) => x.menuId === roles[0])) {
+          reject(next(methods.error('Unauthenticated', 403)))
+        } else if (!findMenuById) {
+          reject(next(methods.error('Permission denied', 403)))
+        } else {
+          resolve(next())
+        }
+      } catch (error) {
+        reject(next(methods.error('Unauthenticated', 403)))
       }
     })
   },
