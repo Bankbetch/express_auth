@@ -3,7 +3,7 @@ const express = require('express'),
       cors = require('cors')
       passport = require("passport"),
       path = require('path'),
-      helmet = require("helmet")
+      helmet = require("helmet"),
       rotatingFileStream = require('rotating-file-stream');
 
 const accessLogStream = rotatingFileStream.createStream('access.log', {
@@ -12,7 +12,9 @@ const accessLogStream = rotatingFileStream.createStream('access.log', {
 })
 
 module.exports = async (app) => {
-  
+  // secure 
+  app.use(helmet())
+    
   // Connect MongoDB
   require('../configs/databases')
 
@@ -38,7 +40,5 @@ module.exports = async (app) => {
 
   // Custom Response Format
   app.use(require('../configs/responseFormat'))
- 
-  // secure 
-  app.use(helmet())
+
 }

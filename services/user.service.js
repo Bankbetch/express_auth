@@ -1,7 +1,10 @@
 const User = require('../models/User'),
+  RefreshToken = require('../models/RefreshToken'),
   config = require('../configs/app'),
   jwt = require('jsonwebtoken'),
-  _ = require('lodash')
+  _ = require('lodash'),
+  crypto = require('crypto'),
+  { validateTokenFromHeader } = require('../helpers/index')
 
 const methods = {
   scopeSearch(req) {
@@ -106,22 +109,59 @@ const methods = {
         if (!obj.validPassword(data.password)) {
           reject(methods.error('username not found or password is invalid.', 401))
         }
-        resolve({ accessToken: obj.generateJWT(obj), userData: obj })
+        const setRefreshToken = new RefreshToken({ user: obj.id })
+        let inserted = await setRefreshToken.save()
+        resolve({ accessToken: obj.generateJWT(obj), refreshToken: inserted.token, userData: obj })
       } catch (error) {
         reject(error)
       }
     })
   },
 
-  refreshToken(accessToken) {
+  deleteToken(req, res, next, headerRefreshToken) {
     return new Promise(async (resolve, reject) => {
       try {
-        let decoded = jwt.decode(accessToken)
-        let obj = await User.findOne({ username: decoded.username })
-        if (!obj) {
+        const getToken = validateTokenFromHeader(req, res, next, true)
+        let decoded = jwt.decode(getToken)
+        let obj = await RefreshToken.findOne({
+          $and: [{ token: headerRefreshToken }, { user: decoded.id }],
+        }).populate('user')
+        if (obj) {
+          await RefreshToken.deleteOne({ token: obj.token })
+          resolve()
+        } else if (!obj) {
+          reject(methods.error('refresh token not found', 401))
+        } else if (!obj.user) {
           reject(methods.error('username not found', 401))
         }
-        resolve({ accessToken: obj.generateJWT(obj), userData: obj })
+      } catch (error) {
+        reject(error)
+      }
+    })
+  },
+
+  refreshToken(req, res, next, headerRefreshToken) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const getToken = validateTokenFromHeader(req, res, next, true)
+        let decoded = jwt.decode(getToken)
+        let obj = await RefreshToken.findOne({
+          $and: [{ token: headerRefreshToken }, { user: decoded.id }],
+        }).populate('user')
+        // console.log(obj.exp, new Date().toISOString())
+        if (obj) {
+          const newToken = await RefreshToken.findOneAndUpdate(
+            { token: obj.token },
+            { token: crypto.randomBytes(36).toString('hex') },
+            { new: true, upsert: true }
+          )
+          const setDataUser = { id: obj.user.id, sub: obj.user.sub }
+          resolve({ accessToken: obj.user.generateJWT(setDataUser), refreshToken: newToken.token, userData: obj })
+        } else if (!obj) {
+          reject(methods.error('refresh token not found', 401))
+        } else if (!obj.user) {
+          reject(methods.error('username not found', 401))
+        }
       } catch (error) {
         reject(error)
       }
