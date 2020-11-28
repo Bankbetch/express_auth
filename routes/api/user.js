@@ -7,15 +7,15 @@ router.get('/', auth.required, getDataToken.getTokenFromHeader(['USERS', 'USERS_
 router.get('/:id', auth.required, getDataToken.getTokenFromHeader(['USERS', 'USERS_VIEW']), controllers.onGetById)
 router.post(
   '/',
-  [validator.user.get, getDataToken.getTokenFromHeader(['USERS', 'USERS_CREATE']), validator.check],
   auth.required,
+  [validator.user.get, getDataToken.getTokenFromHeader(['USERS', 'USERS_CREATE']), validator.check],
   controllers.onInsert
 )
 router.put('/update/:id', auth.required, getDataToken.getTokenFromHeader(['USERS', 'USERS_EDIT']), controllers.onUpdate)
 router.delete('/delete/:id', auth.required, getDataToken.getTokenFromHeader(['USERS', 'USERS_DELETE']), controllers.onDelete)
 router.post('/login', controllers.onLogin)
 router.post('/register', [validator.user.get, validator.check], controllers.onRegister)
-router.post('/refresh-token', auth.validToken, controllers.onRefreshToken)
-router.delete('/logout', auth.validToken, controllers.onDeleteToken)
+router.post('/refresh-token', controllers.onRefreshToken)
+router.delete('/logout', controllers.onDeleteToken)
 
 module.exports = router
