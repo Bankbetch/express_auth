@@ -5,6 +5,7 @@ const mongoose = require('mongoose'),
   crypto = require('crypto'),
   jwt = require('jsonwebtoken'),
   config = require('../configs/app')
+
 const schema = new mongoose.Schema(
   {
     username: {
@@ -30,15 +31,12 @@ schema.plugin(uniqueValidator)
 
 // Generate JWT
 schema.methods.generateJWT = function (obj) {
-  let exp = caclulateTokenExp(config.token_exp_days, config.token_exp_types),
-    signOptions = {
-      algorithm: 'HS256',
-    }
-
+  let exp = caclulateTokenExp(config.token_exp_days, config.token_exp_types)
   return jwt.sign(
     {
       id: this._id,
       sub: this.username,
+      authId: this.uuid || obj.uuid,
       exp: parseInt(new Date(exp).getTime() / 1000),
     },
     config.secret
@@ -57,8 +55,8 @@ schema.methods.toJSON = function () {
     photoURL:
       this.image ||
       'https://icons-for-free.com/iconfiles/png/512/business+costume+male+man+office+user+icon-1320196264882354682.png',
-    createdAt: this.createdAt,
-    updatedAt: this.updatedAt,
+    // createdAt: this.createdAt,
+    // updatedAt: this.updatedAt,
   }
 }
 
