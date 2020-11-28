@@ -3,8 +3,8 @@ const User = require('../models/User'),
   config = require('../configs/app'),
   jwt = require('jsonwebtoken'),
   _ = require('lodash'),
-  crypto = require('crypto'),
-  { validateTokenFromHeader } = require('../helpers/index')
+  { validateTokenFromHeader, randomString } = require('../helpers/index'),
+  { uuid } = require('uuidv4')
 
 const methods = {
   scopeSearch(req) {
@@ -52,7 +52,7 @@ const methods = {
   findById(id) {
     return new Promise(async (resolve, reject) => {
       try {
-        let obj = await User.findById(id)
+        let obj = await User.findById(id).populate('role', ['id', 'roleName'])
         if (!obj) reject(methods.error('Data Not Found', 404))
         resolve(obj.toJSON())
       } catch (error) {
@@ -109,7 +109,8 @@ const methods = {
         if (!obj.validPassword(data.password)) {
           reject(methods.error('username not found or password is invalid.', 401))
         }
-        const setRefreshToken = new RefreshToken({ user: obj.id })
+        obj.uuid = uuid().replace(/-/g, '')
+        const setRefreshToken = new RefreshToken({ user: obj.id, token: randomString(36), authId: obj.uuid })
         let inserted = await setRefreshToken.save()
         resolve({ accessToken: obj.generateJWT(obj), refreshToken: inserted.token, userData: obj })
       } catch (error) {
@@ -121,11 +122,7 @@ const methods = {
   deleteToken(req, res, next, headerRefreshToken) {
     return new Promise(async (resolve, reject) => {
       try {
-        const getToken = validateTokenFromHeader(req, res, next, true)
-        let decoded = jwt.decode(getToken)
-        let obj = await RefreshToken.findOne({
-          $and: [{ token: headerRefreshToken }, { user: decoded.id }],
-        }).populate('user')
+        let { obj } = await methods.checkToken(req, res, next, headerRefreshToken)
         if (obj) {
           await RefreshToken.deleteOne({ token: obj.token })
           resolve()
@@ -143,24 +140,24 @@ const methods = {
   refreshToken(req, res, next, headerRefreshToken) {
     return new Promise(async (resolve, reject) => {
       try {
-        const getToken = validateTokenFromHeader(req, res, next, true)
-        let decoded = jwt.decode(getToken)
-        let obj = await RefreshToken.findOne({
-          $and: [{ token: headerRefreshToken }, { user: decoded.id }],
-        }).populate('user')
-        // console.log(obj.exp, new Date().toISOString())
+        let { obj, decoded } = await methods.checkToken(req, res, next, headerRefreshToken)
         if (obj) {
-          const newToken = await RefreshToken.findOneAndUpdate(
-            { token: obj.token },
-            { token: crypto.randomBytes(36).toString('hex') },
-            { new: true, upsert: true }
-          )
-          const setDataUser = { id: obj.user.id, sub: obj.user.sub }
-          resolve({ accessToken: obj.user.generateJWT(setDataUser), refreshToken: newToken.token, userData: obj })
+          if (obj.exp < new Date()) {
+            await RefreshToken.deleteOne({ token: obj.token })
+            reject(methods.error('Session expried', 401))
+          } else {
+            const newToken = await RefreshToken.findOneAndUpdate(
+              { token: obj.token },
+              { token: randomString(36) },
+              { new: true, upsert: true }
+            )
+            const setDataUser = { id: obj.user.id, sub: obj.user.sub, uuid: decoded.authId }
+            resolve({ accessToken: obj.user.generateJWT(setDataUser), refreshToken: newToken.token, userData: obj.user })
+          }
         } else if (!obj) {
-          reject(methods.error('refresh token not found', 401))
+          reject(methods.error('refresh-token not found or refresh-token not match', 401))
         } else if (!obj.user) {
-          reject(methods.error('username not found', 401))
+          reject(methods.error('Username not found', 401))
         }
       } catch (error) {
         reject(error)
@@ -168,26 +165,43 @@ const methods = {
     })
   },
 
-  validatorRole(req, res, next, roles) {
+  validatorRole(req, res, next, headerRefreshToken, roles) {
     return new Promise(async (resolve, reject) => {
       try {
-        let decoded = jwt.decode(req)
-        let {
-          role: { permissions },
-        } = await User.findById(decoded.id).populate('role', ['roleName', 'permissions']).exec()
-        const menus = permissions.find((x) => x.menuId === roles[0])
-        const findMenuById = menus.menuPermissions.some((menus) => menus.menuPermissionId === roles[1])
-        if (!permissions.some((x) => x.menuId === roles[0])) {
-          reject(next(methods.error('Unauthenticated', 403)))
-        } else if (!findMenuById) {
-          reject(next(methods.error('Permission denied', 403)))
+        let { obj, decoded } = await methods.checkToken(req, res, next, headerRefreshToken)
+        if (obj) {
+          let {
+            role: { permissions },
+          } = await User.findById(decoded.id).populate('role', ['roleName', 'permissions']).exec()
+          const menus = permissions.find((x) => x.menuId === roles[0])
+          const findMenuById = menus.menuPermissions.some((menus) => menus.menuPermissionId === roles[1])
+          if (!permissions.some((x) => x.menuId === roles[0])) {
+            reject(next(methods.error('Unauthenticated', 403)))
+          } else if (!findMenuById) {
+            reject(next(methods.error('Permission denied', 403)))
+          } else {
+            resolve(next())
+          }
         } else {
-          resolve(next())
+          reject(next(methods.error('refresh-token not found or refresh-token not match', 401)))
         }
       } catch (error) {
         reject(next(methods.error('Unauthenticated', 403)))
       }
     })
+  },
+  async checkToken(req, res, next, headerRefreshToken) {
+    try {
+      const getToken = validateTokenFromHeader(req, res, next)
+      let decoded = jwt.decode(getToken)
+      if (!decoded) reject(methods.error('refresh-token not found or refresh-token not match', 401))
+      let obj = await RefreshToken.findOne({
+        $and: [{ token: headerRefreshToken }, { user: decoded.id }, { authId: decoded.authId }],
+      }).populate('user')
+      return { obj: obj, decoded: decoded }
+    } catch (error) {
+      throw error
+    }
   },
 
   error(msg, status = 500) {
