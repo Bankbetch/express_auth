@@ -8,7 +8,13 @@ const schema = new mongoose.Schema(
     roleDescription: { type: String },
     permissions: {
       type: Array,
-      default: [{ permissionID: null, permissionName: null, menus: [] }],
+      default: [
+        {
+          menuName: null,
+          menuId: null,
+          menuPermissions: [],
+        },
+      ],
     },
   },
   { timestamps: true }

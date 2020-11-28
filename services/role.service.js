@@ -1,10 +1,11 @@
-const Role = require('../models/Role')
-const config = require('../configs/app')
+const Role = require('../models/Role'),
+  config = require('../configs/app'),
+  { aggregateByFindAll } = require('../helpers/aggregate.helper')
 
 const methods = {
   scopeSearch(req) {
     $or = []
-    if (req.query.roleName) $or.push({ roleName: { $regex: req.query.roleName } })
+    if (req.query.roleName) $or.push({ roleName: { $regex: req.query.roleName, $options: 'i' } })
     let query = $or.length > 0 ? { $or } : {}
     let sort = { createdAt: -1 }
     if (req.query.orderByField && req.query.orderBy)
@@ -16,15 +17,34 @@ const methods = {
     let limit = +(req.query.size || config.pageLimit)
     let offset = +(limit * ((req.query.page || 1) - 1))
     let _q = methods.scopeSearch(req)
-
     return new Promise(async (resolve, reject) => {
       try {
-        Promise.all([Role.find(_q.query).sort(_q.sort).limit(limit).skip(offset), Role.countDocuments(_q.query)])
+        const pushAggregate = {
+          $push: {
+            id: '$_id',
+            countUsers: { $size: '$count' },
+            roleName: '$roleName',
+            permissions: '$permissions',
+            createdAt: '$createdAt',
+            updatedAt: '$updatedAt',
+          },
+        }
+        Promise.all([
+          Role.aggregate(aggregateByFindAll(_q, 'users', '_id', 'role', offset, limit, pushAggregate)).exec(),
+          Role.countDocuments(_q.query),
+        ])
           .then((result) => {
             let rows = result[0]
             let count = result[1]
+            if (rows.length === 0)
+              resolve({
+                rows: [],
+                total: count,
+                lastPage: Math.ceil(count / limit),
+                currPage: +req.query.page || 1,
+              })
             resolve({
-              rows: rows,
+              rows: rows[0].data,
               total: count,
               lastPage: Math.ceil(count / limit),
               currPage: +req.query.page || 1,

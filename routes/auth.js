@@ -2,12 +2,8 @@ const jwt = require('express-jwt'),
   secret = require('../configs/app').secret,
   { validateTokenFromHeader } = require('../helpers/index')
 
-const getTokenFromHeader = (req) => {
-  return validateTokenFromHeader(req)
-}
-
-const ValidateToken = (req, res, next) => {
-  return validateTokenFromHeader(req, res, next, true)
+const getTokenFromHeader = (req, res, next) => {
+  return validateTokenFromHeader(req, res, next)
 }
 
 const auth = {
@@ -20,7 +16,6 @@ const auth = {
     credentialsRequired: false,
     getToken: getTokenFromHeader,
   }),
-  validToken: ValidateToken,
 }
 
 module.exports = auth
