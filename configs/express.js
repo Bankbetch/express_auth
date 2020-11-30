@@ -1,11 +1,10 @@
 const express = require('express'),
   morgan = require('morgan'),
-  cors = require('cors')
-;(passport = require('passport')),
-  (path = require('path')),
-  (helmet = require('helmet')),
-  (rotatingFileStream = require('rotating-file-stream')),
-  (moment = require('moment'))
+  cors = require('cors'),
+  path = require('path'),
+  helmet = require('helmet'),
+  rotatingFileStream = require('rotating-file-stream'),
+  moment = require('moment')
 
 const accessLogStream = rotatingFileStream.createStream('access.log', {
   interval: '1d', // rotate daily
@@ -48,4 +47,7 @@ module.exports = async (app) => {
 
   // Custom Response Format
   app.use(require('../configs/responseFormat'))
+
+  // cron-job
+  require('../configs/cron')
 }

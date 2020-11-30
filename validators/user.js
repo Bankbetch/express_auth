@@ -2,7 +2,7 @@ const { check } = require('express-validator')
 
 module.exports = {
   get: [
-    check('username')
+    check('email')
       .notEmpty().withMessage('is empty')
       .isEmail().withMessage('must be email'),
 

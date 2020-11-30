@@ -3,7 +3,7 @@ const passport = require('passport'),
       User = require('../models/User')
 
 passport.use(new LocalStrategy({
-  usernameField: 'email',
+  emailField: 'email',
   passwordField: 'password'
 }, (email, password, done) => {
   

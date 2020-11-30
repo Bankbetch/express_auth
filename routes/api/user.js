@@ -15,7 +15,8 @@ router.put('/update/:id', auth.required, getDataToken.getTokenFromHeader(['USERS
 router.delete('/delete/:id', auth.required, getDataToken.getTokenFromHeader(['USERS', 'USERS_DELETE']), controllers.onDelete)
 router.post('/login', controllers.onLogin)
 router.post('/register', [validator.user.get, validator.check], controllers.onRegister)
-router.post('/refresh-token', controllers.onRefreshToken)
+router.post('/refresh-token', auth.required, auth.optional, controllers.onRefreshToken)
+router.post('/confirm', controllers.onConfirm)
 router.delete('/logout', controllers.onDeleteToken)
 
 module.exports = router

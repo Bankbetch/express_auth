@@ -1,4 +1,5 @@
-const Service = require('../services/user.service')
+const Service = require('../services/user.service'),
+  getIP = require('ipware')().get_ip
 // validate module
 
 const methods = {
@@ -48,8 +49,9 @@ const methods = {
   },
 
   async onLogin(req, res) {
+    const ipInfo = getIP(req)
     try {
-      let result = await Service.login(req.body)
+      let result = await Service.login(req.body, ipInfo.clientIp)
       res.success(result)
     } catch (error) {
       res.error(error.message, error.status)
@@ -76,6 +78,15 @@ const methods = {
   async onDeleteToken(req, res, next) {
     try {
       let result = await Service.deleteToken(req, res, next, req.headers['x-refresh-token'])
+      res.success(result)
+    } catch (error) {
+      res.error(error.message, error.status)
+    }
+  },
+  async onConfirm(req, res) {
+    const ipInfo = getIP(req)
+    try {
+      let result = await Service.confirmToken(req.query.confirm, ipInfo.clientIp)
       res.success(result)
     } catch (error) {
       res.error(error.message, error.status)

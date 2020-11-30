@@ -3,13 +3,12 @@ const User = require('../models/User'),
   config = require('../configs/app'),
   jwt = require('jsonwebtoken'),
   _ = require('lodash'),
-  { validateTokenFromHeader, randomString } = require('../helpers/index'),
-  { uuid } = require('uuidv4')
+  { validateTokenFromHeader, randomString, generateToken } = require('../helpers/index')
 
 const methods = {
   scopeSearch(req) {
     $or = []
-    if (req.query.username) $or.push({ username: { $regex: req.query.username } })
+    if (req.query.email) $or.push({ email: { $regex: req.query.email } })
     if (req.query.email) $or.push({ email: { $regex: req.query.email } })
     if (req.query.age) $or.push({ age: +req.query.age })
     let query = $or.length > 0 ? { $or } : {}
@@ -64,9 +63,16 @@ const methods = {
   insert(data) {
     return new Promise(async (resolve, reject) => {
       try {
-        const obj = new User(data)
-        let inserted = await obj.save()
-        resolve(inserted)
+        User.register(data, (error, registerable) => {
+          if (error) {
+            reject(methods.error(error.message, 400))
+          } else {
+            registerable.sendConfirmation((error, confirmable) => {
+              console.log(confirmable)
+            })
+            resolve(registerable)
+          }
+        })
       } catch (error) {
         reject(methods.error(error.message, 400))
       }
@@ -99,26 +105,44 @@ const methods = {
     })
   },
 
-  login(data) {
+  login(data, ipInfo) {
     return new Promise(async (resolve, reject) => {
       try {
-        let obj = await User.findOne({ username: data.username })
-        if (!obj) {
-          reject(methods.error('username not found or password is invalid.', 401))
-        }
-        if (!obj.validPassword(data.password)) {
-          reject(methods.error('username not found or password is invalid.', 401))
-        }
-        obj.uuid = uuid().replace(/-/g, '')
-        const setRefreshToken = new RefreshToken({ user: obj.id, token: randomString(36), authId: obj.uuid })
-        let inserted = await setRefreshToken.save()
-        resolve({ accessToken: obj.generateJWT(obj), refreshToken: inserted.token, userData: obj })
+        User.authenticate(data, async (error, authenticable) => {
+          if (error) {
+            // User.findOne({ email: data.email }).exec((error, user) => {
+            //   user.lock((lockError, lockable) => {})
+            // })
+            reject(methods.error(error.message, 401))
+          } else {
+            const setRefreshToken = new RefreshToken(generateToken(authenticable))
+            let inserted
+            await Promise.all([setRefreshToken.save(), authenticable.track(ipInfo, (error, trackable) => {})]).then(
+              (res) => (inserted = res[0])
+            )
+            resolve({
+              accessToken: authenticable.generateJWT(authenticable),
+              refreshToken: inserted.token,
+              userData: authenticable,
+            })
+          }
+        })
       } catch (error) {
         reject(error)
       }
     })
   },
-
+  deleteTokenByCron() {
+    return new Promise(async (resolve, reject) => {
+      try {
+        await RefreshToken.deleteMany({ exp: { $lt: new Date() } })
+        resolve()
+      } catch (error) {
+        console.log(error)
+        reject(error)
+      }
+    })
+  },
   deleteToken(req, res, next, headerRefreshToken) {
     return new Promise(async (resolve, reject) => {
       try {
@@ -129,7 +153,7 @@ const methods = {
         } else if (!obj) {
           reject(methods.error('refresh token not found', 401))
         } else if (!obj.user) {
-          reject(methods.error('username not found', 401))
+          reject(methods.error('email not found', 401))
         }
       } catch (error) {
         reject(error)
@@ -157,10 +181,10 @@ const methods = {
         } else if (!obj) {
           reject(methods.error('refresh-token not found or refresh-token not match', 401))
         } else if (!obj.user) {
-          reject(methods.error('Username not found', 401))
+          reject(methods.error('email not found', 401))
         }
       } catch (error) {
-        reject(error)
+        reject(methods.error(error.message, 401))
       }
     })
   },
@@ -193,15 +217,43 @@ const methods = {
   async checkToken(req, res, next, headerRefreshToken) {
     try {
       const getToken = validateTokenFromHeader(req, res, next)
-      let decoded = jwt.decode(getToken)
-      if (!decoded) reject(methods.error('refresh-token not found or refresh-token not match', 401))
-      let obj = await RefreshToken.findOne({
+      const decoded = jwt.decode(getToken)
+      // if (!decoded) return methods.error('refresh-token not found or refresh-token not match', 401)
+      const obj = await RefreshToken.findOne({
         $and: [{ token: headerRefreshToken }, { user: decoded.id }, { authId: decoded.authId }],
       }).populate('user')
       return { obj: obj, decoded: decoded }
     } catch (error) {
       throw error
     }
+  },
+  confirmToken(confirm, ipInfo) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        await User.confirm(confirm, async (error, confirmable) => {
+          if (error) {
+            reject(methods.error(error.message, 404))
+          } else {
+            if (confirmable.confirmedAt === null) {
+              const setRefreshToken = new RefreshToken(generateToken(confirmable))
+              let inserted
+              await Promise.all([setRefreshToken.save(), confirmable.track(ipInfo, (error, trackable) => {})]).then(
+                (res) => (inserted = res[0])
+              )
+              resolve({
+                accessToken: confirmable.generateJWT(confirmable),
+                refreshToken: inserted.token,
+                userData: confirmable,
+              })
+            } else {
+              reject(methods.error('Account has confirmed', 401))
+            }
+          }
+        })
+      } catch (error) {
+        reject(error)
+      }
+    })
   },
 
   error(msg, status = 500) {

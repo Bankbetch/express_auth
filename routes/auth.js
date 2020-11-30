@@ -11,11 +11,11 @@ const auth = {
     secret: secret,
     getToken: getTokenFromHeader,
   }),
-  optional: jwt({
-    secret: secret,
-    credentialsRequired: false,
-    getToken: getTokenFromHeader,
-  }),
+  optional(err, req, res, next) {
+    // jwt expired
+    if (err.message === 'jwt expired') next()
+    next(err)
+  },
 }
 
 module.exports = auth

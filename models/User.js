@@ -1,26 +1,13 @@
 const mongoose = require('mongoose'),
-  fs = require('fs'),
   { caclulateTokenExp } = require('../helpers'),
   uniqueValidator = require('mongoose-unique-validator'),
-  crypto = require('crypto'),
   jwt = require('jsonwebtoken'),
-  config = require('../configs/app')
+  config = require('../configs/app'),
+  irina = require('irina')
 
 const schema = new mongoose.Schema(
   {
-    username: {
-      type: String,
-      index: true,
-      required: true,
-      unique: true,
-      uniqueCaseInsensitive: false,
-    },
-    password: { type: String, index: true },
-    salt: {
-      type: String,
-      required: true,
-      default: crypto.randomBytes(20).toString('hex'),
-    },
+    email: { type: String, index: true, required: true, unique: true, uniqueCaseInsensitive: false },
     role: { type: mongoose.Schema.Types.ObjectId, ref: 'Role' },
   },
   { timestamps: true }
@@ -29,13 +16,15 @@ const schema = new mongoose.Schema(
 // Apply the uniqueValidator plugin to userSchema.
 schema.plugin(uniqueValidator)
 
+schema.plugin(irina)
+
 // Generate JWT
 schema.methods.generateJWT = function (obj) {
   let exp = caclulateTokenExp(config.token_exp_days, config.token_exp_types)
   return jwt.sign(
     {
       id: this._id,
-      sub: this.username,
+      sub: this.email,
       authId: this.uuid || obj.uuid,
       exp: parseInt(new Date(exp).getTime() / 1000),
     },
@@ -45,11 +34,9 @@ schema.methods.generateJWT = function (obj) {
   )
 }
 
-// Custom JSON Response
 schema.methods.toJSON = function () {
   return {
     id: this._id,
-    username: this.username,
     email: this.email,
     role: this.role,
     photoURL:
@@ -59,22 +46,5 @@ schema.methods.toJSON = function () {
     // updatedAt: this.updatedAt,
   }
 }
-
-// Hash Password
-schema.methods.passwordHash = function (password, salt) {
-  // return crypto.createHash('sha1').update(password).digest('hex')
-  return crypto.createHmac('sha512', salt).update(password).digest('hex')
-}
-
-// Verify Password
-schema.methods.validPassword = function (password) {
-  return this.passwordHash(password, this.salt) === this.password
-}
-
-// Custom field before save
-schema.pre('save', function (next) {
-  this.password = this.passwordHash(this.password, this.salt)
-  next()
-})
 
 module.exports = mongoose.model('User', schema)

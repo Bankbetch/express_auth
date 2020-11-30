@@ -1,3 +1,4 @@
+const { v4: uuidv4 } = require('uuid')
 const methods = {
   validateTokenFromHeader(req, res, next) {
     if (
@@ -12,12 +13,21 @@ const methods = {
   },
   randomString(len, charSet) {
     charSet = charSet || 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-    var randomString = ''
-    for (var i = 0; i < len; i++) {
-      var randomPoz = Math.floor(Math.random() * charSet.length)
+    let randomString = ''
+    for (let i = 0; i < len; i++) {
+      const randomPoz = Math.floor(Math.random() * charSet.length)
       randomString += charSet.substring(randomPoz, randomPoz + 1)
     }
     return randomString
+  },
+  generateToken(authenticable) {
+    authenticable.uuid = uuidv4().replace(/-/g, '')
+    const setRefreshToken = {
+      user: authenticable.id,
+      token: methods.randomString(36),
+      authId: authenticable.uuid,
+    }
+    return setRefreshToken
   },
 }
 
