@@ -116,6 +116,14 @@ const methods = {
       res.error(error.message, error.status)
     }
   },
+  async onRecover(req, res) {
+    try {
+      let result = await Service.recover(req.body)
+      res.success(result)
+    } catch (error) {
+      res.error(error.message, error.status)
+    }
+  },
 }
 
 module.exports = { ...methods }

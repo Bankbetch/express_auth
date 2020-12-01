@@ -20,5 +20,6 @@ router.post('/confirm', controllers.onConfirm)
 router.get('/send-lock', controllers.onSendLock)
 router.post('/unlock', controllers.onUnlock)
 router.delete('/logout', controllers.onDeleteToken)
-router.get('/request-recove', controllers.onRequestRecover)
+router.get('/request-recover', controllers.onRequestRecover)
+router.post('/recover', controllers.onRecover)
 module.exports = router

@@ -297,7 +297,32 @@ const methods = {
           if (error) {
             console.log(error)
           } else {
-            resolve({token:recoverable.recoveryToken})
+            resolve({ token: recoverable.recoveryToken })
+          }
+        })
+      } catch (error) {
+        reject(error)
+      }
+    })
+  },
+  recover({ recoveryToken, password }) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        await User.findOne({ recoveryToken: recoveryToken }).exec(async (e, user) => {
+          if (user) {
+            if (user.recoveredAt === null) {
+              await User.recover(recoveryToken, password, (error, recoverable) => {
+                if (error) {
+                  reject(methods.error(error.message, 401))
+                } else {
+                  resolve()
+                }
+              })
+            } else {
+              reject(methods.error('Recovery token not found', 404))
+            }
+          } else {
+            reject(methods.error('Recovery token not found', 404))
           }
         })
       } catch (error) {
