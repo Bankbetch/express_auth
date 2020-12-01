@@ -92,6 +92,30 @@ const methods = {
       res.error(error.message, error.status)
     }
   },
+  async onSendLock(req, res) {
+    try {
+      let result = await Service.sendLock(req.query.email)
+      res.success(result)
+    } catch (error) {
+      res.error(error.message, error.status)
+    }
+  },
+  async onUnlock(req, res) {
+    try {
+      let result = await Service.unlock(req.body.email)
+      res.success(result)
+    } catch (error) {
+      res.error(error.message, error.status)
+    }
+  },
+  async onRequestRecover(req, res) {
+    try {
+      let result = await Service.requestRecover(req.query.email)
+      res.success(result)
+    } catch (error) {
+      res.error(error.message, error.status)
+    }
+  },
 }
 
 module.exports = { ...methods }

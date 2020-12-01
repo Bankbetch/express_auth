@@ -200,17 +200,17 @@ const methods = {
           const menus = permissions.find((x) => x.menuId === roles[0])
           const findMenuById = menus.menuPermissions.some((menus) => menus.menuPermissionId === roles[1])
           if (!permissions.some((x) => x.menuId === roles[0])) {
-            reject(next(methods.error('Unauthenticated', 403)))
+            reject(next(methods.error('Unauthenticated', 401)))
           } else if (!findMenuById) {
             reject(next(methods.error('Permission denied', 403)))
           } else {
             resolve(next())
           }
         } else {
-          reject(next(methods.error('refresh-token not found or refresh-token not match', 401)))
+          reject(next(methods.error('Unauthenticated', 401)))
         }
       } catch (error) {
-        reject(next(methods.error('Unauthenticated', 403)))
+        reject(next(methods.error('Unauthenticated', 401)))
       }
     })
   },
@@ -218,7 +218,7 @@ const methods = {
     try {
       const getToken = validateTokenFromHeader(req, res, next)
       const decoded = jwt.decode(getToken)
-      // if (!decoded) return methods.error('refresh-token not found or refresh-token not match', 401)
+      if (!decoded) return methods.error('refresh-token not found or refresh-token not match', 401)
       const obj = await RefreshToken.findOne({
         $and: [{ token: headerRefreshToken }, { user: decoded.id }, { authId: decoded.authId }],
       }).populate('user')
@@ -255,7 +255,56 @@ const methods = {
       }
     })
   },
-
+  sendLock(email) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        await User.findOne({ email: email }).exec((error, user) => {
+          if (user) resolve({ token: user.unlockToken })
+          else reject(methods.error('User not found', 404))
+        })
+      } catch (error) {
+        reject(error)
+      }
+    })
+  },
+  unlock(token) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        await User.findOne({ unlockToken: token }).exec(async (err, user) => {
+          if (user) {
+            if (user.unlockedAt) reject(methods.error('Unlocked token not found', 404))
+            else
+              await User.unlock(token, async (error, lockable) => {
+                if (error) {
+                  reject(error)
+                } else {
+                  resolve()
+                }
+              })
+          } else {
+            reject(methods.error('Unlocked token not found', 404))
+          }
+        })
+      } catch (error) {
+        reject(error)
+      }
+    })
+  },
+  requestRecover(email) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        await User.requestRecover({ email: email }, (error, recoverable) => {
+          if (error) {
+            console.log(error)
+          } else {
+            resolve({token:recoverable.recoveryToken})
+          }
+        })
+      } catch (error) {
+        reject(error)
+      }
+    })
+  },
   error(msg, status = 500) {
     let error = new Error(msg)
     error.status = status
