@@ -59,6 +59,52 @@ const methods = {
     })
   },
 
+  findAll(req) {
+    let limit = +(req.query.size || config.pageLimit)
+    let offset = +(limit * ((req.query.page || 1) - 1))
+    let _q = methods.scopeSearch(req)
+    return new Promise(async (resolve, reject) => {
+      try {
+        const pushAggregate = {
+          $push: {
+            id: '$_id',
+            countUsers: { $size: '$count' },
+            roleName: '$roleName',
+            description: '$description',
+            isPublic: '$isPublic',
+            updatedAt: '$updatedAt',
+          },
+        }
+        Promise.all([
+          Role.aggregate(aggregateByFindAll(_q, 'users', '_id', 'role', offset, limit, pushAggregate)).exec(),
+          Role.countDocuments(_q.query),
+        ])
+          .then((result) => {
+            let rows = result[0]
+            let count = result[1]
+            if (rows.length === 0)
+              resolve({
+                rows: [],
+                total: count,
+                lastPage: Math.ceil(count / limit),
+                currPage: +req.query.page || 1,
+              })
+            resolve({
+              rows: rows[0].data,
+              total: count,
+              lastPage: Math.ceil(count / limit),
+              currPage: +req.query.page || 1,
+            })
+          })
+          .catch((error) => {
+            reject(error)
+          })
+      } catch (error) {
+        reject(error)
+      }
+    })
+  },
+
   findById(id) {
     return new Promise(async (resolve, reject) => {
       try {

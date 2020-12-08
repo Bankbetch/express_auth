@@ -51,7 +51,7 @@ const methods = {
   findById(id) {
     return new Promise(async (resolve, reject) => {
       try {
-        let obj = await User.findById(id).populate('role', ['id', 'roleName'])
+        let obj = await User.findById(id).populate('role', ['id', 'roleName']).exec()
         if (!obj) reject(methods.error('Data Not Found', 404))
         resolve(obj.toJSON())
       } catch (error) {
@@ -99,6 +99,20 @@ const methods = {
         if (!obj) reject(methods.error('Data Not Found', 404))
         await User.deleteOne({ _id: id })
         resolve()
+      } catch (error) {
+        reject(error)
+      }
+    })
+  },
+
+  me(req, res, next) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const getToken = validateTokenFromHeader(req, res, next)
+        const decoded = jwt.decode(getToken)
+        let obj = await User.findById(decoded.id).populate('role', ['roleName']).exec()
+        if (!obj) reject(methods.error('Data Not Found', 404))
+        resolve(obj.toJSON())
       } catch (error) {
         reject(error)
       }

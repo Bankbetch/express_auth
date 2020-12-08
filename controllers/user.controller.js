@@ -48,6 +48,15 @@ const methods = {
     }
   },
 
+  async onGetMyself(req, res, next) {
+    try {
+      let result = await Service.me(req, res, next)
+      res.success(result)
+    } catch (error) {
+      res.error(error.message, error.status)
+    }
+  },
+
   async onLogin(req, res) {
     const ipInfo = getIP(req)
     try {

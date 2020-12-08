@@ -6,6 +6,7 @@ const schema = new mongoose.Schema(
   {
     roleName: { type: String, index: true, required: true, unique: true, uniqueCaseInsensitive: false },
     roleDescription: { type: String },
+    isPublic: { type: Boolean, default: true },
     permissions: {
       type: Array,
       default: [
@@ -30,7 +31,17 @@ schema.methods.toJSON = function () {
     roleName: this.roleName,
     roleDescription: this.roleDescription,
     permissions: this.permissions,
-    createdAt: this.createdAt,
+    isPublic: this.isPublic,
+    updatedAt: this.updatedAt,
+  }
+}
+
+schema.methods.toRole = function () {
+  return {
+    id: this._id,
+    roleName: this.roleName,
+    roleDescription: this.roleDescription,
+    isPublic: this.isPublic,
     updatedAt: this.updatedAt,
   }
 }

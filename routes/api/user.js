@@ -4,7 +4,7 @@ const auth = require('../auth')
 const validator = require('../../validators')
 const getDataToken = require('../rolePermissions')
 router.get('/index', auth.required, getDataToken.getTokenFromHeader(['USERS', 'USERS_VIEW']), controllers.onGetAll)
-router.get('/find-one:id', auth.required, getDataToken.getTokenFromHeader(['USERS', 'USERS_VIEW']), controllers.onGetById)
+router.get('/find-one/:id', auth.required, getDataToken.getTokenFromHeader(['USERS', 'USERS_VIEW']), controllers.onGetById)
 router.post(
   '/',
   auth.required,
@@ -13,9 +13,10 @@ router.post(
 )
 router.put('/update/:id', auth.required, getDataToken.getTokenFromHeader(['USERS', 'USERS_EDIT']), controllers.onUpdate)
 router.delete('/delete/:id', auth.required, getDataToken.getTokenFromHeader(['USERS', 'USERS_DELETE']), controllers.onDelete)
+router.get('/me', auth.required, controllers.onGetMyself)
 router.post('/login', controllers.onLogin)
 router.post('/register', [validator.user.get, validator.check], controllers.onRegister)
-router.post('/refresh-token', auth.required, auth.optional, controllers.onRefreshToken)
+router.post('/refresh-token', auth.optional, controllers.onRefreshToken)
 router.post('/confirm', controllers.onConfirm)
 router.get('/send-lock', controllers.onSendLock)
 router.post('/unlock', controllers.onUnlock)

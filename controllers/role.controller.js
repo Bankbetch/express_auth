@@ -2,9 +2,18 @@ const Service = require('../services/role.service')
 // validate module
 
 const methods = {
-  async onGetAll(req, res) {
+  async onGetAllByPermission(req, res) {
     try {
       let result = await Service.find(req)
+      res.success(result)
+    } catch (error) {
+      res.error(error.message, error.status)
+    }
+  },
+
+  async onGetAll(req, res) {
+    try {
+      let result = await Service.findAll(req)
       res.success(result)
     } catch (error) {
       res.error(error.message, error.status)
